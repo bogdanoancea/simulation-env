@@ -1,0 +1,580 @@
+\documentclass{article}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{tocloft}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{verbatim}
+
+% Page setup
+\geometry{
+	a4paper,
+	left=25mm,
+	right=25mm,
+	top=25mm,
+	bottom=25mm,
+}
+
+% Header and Footer
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Simulating Mobile Phone Network Data in Bucharest}
+\rhead{\thepage}
+\cfoot{}
+
+% Table of Contents formatting
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+
+% Hyperlink setup
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	urlcolor=blue,
+}
+
+\begin{document}
+	
+	\title{Simulating Mobile Phone Network Data in Bucharest Using VEINS and INET Frameworks}
+	\author{}
+	\date{}
+	
+	\maketitle
+	
+	\tableofcontents
+	\newpage
+	
+	\section{Overview}
+	
+	This guide provides comprehensive instructions and code examples to simulate mobile phone network data with geolocation of devices on the Bucharest map over 24 hours for \textbf{100,000 SIM cards} using the \textbf{VEINS} and \textbf{INET} frameworks. Each phone can have between \textbf{1 and 3 SIM cards}, and mobility patterns are based on Bucharest's points of interest (POIs) such as schools, airports, train stations, and bus stations. The simulation includes two modes of transportation: \textbf{pedestrian} and \textbf{vehicle}. Additionally, the network configuration incorporates antenna locations and types from \textbf{OpenCellID} data for Bucharest.
+	
+	\section{Prerequisites}
+	
+	Ensure you have the following software and data installed and prepared:
+	
+	\begin{itemize}
+		\item \textbf{Software:}
+		\begin{itemize}
+			\item \textbf{OMNeT++} (version 5.6 or later)
+			\item \textbf{INET Framework} (version 4.2 or later)
+			\item \textbf{VEINS} (version 5.1 or later)
+			\item \textbf{SUMO} (version 1.7.0 or later)
+			\item \textbf{Python} (for processing scripts)
+		\end{itemize}
+		\item \textbf{Data:}
+		\begin{itemize}
+			\item \textbf{OpenStreetMap (OSM) Data} for Bucharest
+			\item \textbf{OpenCellID Data} for Bucharest
+		\end{itemize}
+	\end{itemize}
+	
+	\section{Data Preparation}
+	
+	\subsection{Bucharest Map Data}
+	
+	\begin{enumerate}
+		\item \textbf{Download OSM Data:}
+		\begin{itemize}
+			\item Download Bucharest map data from OpenStreetMap in \texttt{.osm} format.
+			\item \href{https://www.openstreetmap.org/export#map=12/44.4268/26.1025}{OpenStreetMap Export}
+		\end{itemize}
+		\item \textbf{Convert OSM Data to SUMO Network:}
+	\end{enumerate}
+	
+	\begin{verbatim}
+		netconvert --osm-files bucharest.osm -o bucharest.net.xml
+	\end{verbatim}
+	
+	\subsection{OpenCellID Antenna Data}
+	
+	\begin{enumerate}
+		\item \textbf{Download OpenCellID Data:}
+		\begin{itemize}
+			\item Register at \href{https://opencellid.org/}{OpenCellID} to access cell tower data.
+			\item Download data for Bucharest in CSV format.
+		\end{itemize}
+		\item \textbf{Process OpenCellID Data:}
+		\begin{itemize}
+			\item Filter data to include antennas located in Bucharest.
+			\item Extract necessary fields: Cell ID, Latitude, Longitude, and Antenna Type.
+		\end{itemize}
+	\end{enumerate}
+	
+	\section{Setting Up the Simulation Environment}
+	%TODO : the easy way: download the virtual machine with all software packages installed
+	%TODO: the norm way .... install each component.
+	\subsection{Installing OMNeT++, INET, and VEINS}
+	
+	\begin{enumerate}
+		\item \textbf{Install OMNeT++:}
+		\begin{itemize}
+			\item Follow the \href{https://doc.omnetpp.org/omnetpp/InstallGuide.pdf}{OMNeT++ Installation Guide}.
+		\end{itemize}
+		\item \textbf{Install INET Framework:}
+		\begin{itemize}
+			\item Clone the INET repository into the OMNeT++ workspace.
+			\begin{verbatim}
+				cd omnetpp-5.x/samples
+				git clone https://github.com/inet-framework/inet.git
+			\end{verbatim}
+			\item Import INET into the OMNeT++ IDE and build it.
+		\end{itemize}
+		\item \textbf{Install VEINS:}
+		\begin{itemize}
+			\item Clone the VEINS repository into the OMNeT++ workspace.
+			\begin{verbatim}
+				git clone https://github.com/sommer/veins.git
+			\end{verbatim}
+			\item Import VEINS into the OMNeT++ IDE and build it.
+		\end{itemize}
+	\end{enumerate}
+	
+	\subsection{Integrating SUMO with VEINS}
+	
+	\begin{enumerate}
+		\item \textbf{Configure SUMO:}
+		\begin{itemize}
+			\item Ensure SUMO is installed and accessible in your system's PATH.
+			\item Set the environment variable \texttt{SUMO\_HOME} to point to the SUMO installation directory.
+		\end{itemize}
+		\item \textbf{Test Integration:}
+		\begin{itemize}
+			\item Run a VEINS example simulation to verify integration with SUMO.
+		\end{itemize}
+	\end{enumerate}
+	
+	\section{Defining Mobility Patterns with SUMO}
+	
+	\subsection{Defining Points of Interest (POIs)}
+	
+	Create a file named \texttt{bucharest.poi.xml} with the following content:
+	
+	\begin{verbatim}
+		<additional>
+		<!-- Henri Coanda International Airport -->
+		<poi id="airport" x="26.1025" y="44.5720" />
+		<!-- Gara de Nord Train Station -->
+		<poi id="train_station" x="26.0840" y="44.4440" />
+		<!-- Piata Unirii Bus Station -->
+		<poi id="bus_station" x="26.1030" y="44.4270" />
+		<!-- Add more POIs such as schools, malls, parks -->
+		</additional>
+	\end{verbatim}
+	
+	\subsection{Generating Mobility Routes}
+	
+	\subsubsection{Generating Random Trips}
+	
+	Use SUMO's \texttt{randomTrips.py} to generate trips for pedestrians and vehicles.
+	
+	\textbf{Pedestrian Trips:}
+	
+	\begin{verbatim}
+		python $SUMO_HOME/tools/randomTrips.py \
+		-n bucharest.net.xml \
+		-o pedestrian.trips.xml \
+		--additional-files bucharest.poi.xml \
+		--pedestrians \
+		--trip-attributes="type=\"pedestrian\"" \
+		-e 86400 \
+		-p 0.1 \
+		--seed 42 \
+		--validate
+	\end{verbatim}
+	
+	\textbf{Vehicle Trips:}
+	
+	\begin{verbatim}
+		python $SUMO_HOME/tools/randomTrips.py \
+		-n bucharest.net.xml \
+		-o vehicle.trips.xml \
+		--additional-files bucharest.poi.xml \
+		--trip-attributes="type=\"vehicle\"" \
+		-e 86400 \
+		-p 0.05 \
+		--seed 42 \
+		--validate
+	\end{verbatim}
+	
+	\subsubsection{Converting Trips to Routes}
+	
+	\begin{verbatim}
+		duarouter \
+		-n bucharest.net.xml \
+		-t pedestrian.trips.xml \
+		-o pedestrian.rou.xml \
+		--additional-files bucharest.poi.xml
+		
+		duarouter \
+		-n bucharest.net.xml \
+		-t vehicle.trips.xml \
+		-o vehicle.rou.xml \
+		--additional-files bucharest.poi.xml
+	\end{verbatim}
+	
+	\subsubsection{Creating the SUMO Configuration File}
+	
+	Create a file named \texttt{bucharest.sumo.cfg}:
+	
+	\begin{verbatim}
+		<configuration>
+		<input>
+		<net-file value="bucharest.net.xml"/>
+		<route-files value="pedestrian.rou.xml,vehicle.rou.xml"/>
+		<additional-files value="bucharest.poi.xml"/>
+		</input>
+		<time>
+		<begin value="0"/>
+		<end value="86400"/>
+		</time>
+		</configuration>
+	\end{verbatim}
+	
+	\section{Configuring Network Nodes and SIM Cards}
+	
+	\subsection{Creating the Network Topology (NED Files)}
+	
+	\subsubsection{Mobile Network NED File (\texttt{MobileNetwork.ned})}
+	
+	\begin{verbatim}
+		package mobile.simulation;
+		
+		import inet.common.misc.ThruputMeteringChannel;
+		import inet.node.inet.AdhocHost;
+		
+		network MobileNetwork
+		{
+			parameters:
+			int numDevices = default(50000); // Each device can have multiple SIM cards
+			submodules:
+			// Cellular network module
+			cellularNetwork: CellularNetwork {
+				@display("p=100,100");
+			}
+			// Mobile devices
+			devices[numDevices]: MobileDevice {
+				@display("p=200,100");
+			}
+		}
+	\end{verbatim}
+	
+	\subsubsection{Channel Definition}
+	
+	\begin{verbatim}
+		channel mediumLine extends ThruputMeteringChannel
+		{
+			delay = 0us;
+			datarate = 1Gbps;
+		}
+	\end{verbatim}
+	
+	\subsection{Implementing the Mobile Device Module}
+	
+	\subsubsection{Mobile Device NED File (\texttt{MobileDevice.ned})}
+	
+	\begin{verbatim}
+		package mobile.simulation;
+		
+		import inet.node.inet.AdhocHost;
+		import inet.mobility.contract.IMobility;
+		import veins.base.modules.BaseApplLayer;
+		
+		module MobileDevice extends AdhocHost
+		{
+			parameters:
+			int numSims;
+			string modeOfTransport; // "pedestrian" or "vehicle"
+			@display("i=device/smartphone");
+			submodules:
+			app: BaseApplLayer {
+				@display("p=100,100");
+			}
+			mobility: <default("TraCIMobility")> like IMobility if hasPar("mobilityType");
+		}
+	\end{verbatim}
+	
+	\subsubsection{Mobile Device Implementation (\texttt{MobileDevice.cc})}
+	
+	Create \texttt{MobileDevice.cc} in the \texttt{src} directory:
+	
+	\begin{verbatim}
+		#include <omnetpp.h>
+		#include "MobileDevice.h"
+		#include "inet/mobility/traci/TraCIMobility.h"
+		#include "inet/common/ModuleAccess.h"
+		
+		Define_Module(MobileDevice);
+		
+		void MobileDevice::initialize(int stage)
+		{
+			AdhocHost::initialize(stage);
+			
+			if (stage == inet::INITSTAGE_LOCAL) {
+				// Assign SIM cards
+				int numSims = par("numSims").intValue();
+				for (int i = 0; i < numSims; ++i) {
+					std::string simId = "SIM" + std::to_string(getIndex() * 3 + i);
+					simCards.push_back(simId);
+				}
+				
+				// Set mode of transport
+				modeOfTransport = par("modeOfTransport").stdstringValue();
+				
+				// Mobility setup
+				mobility = inet::getModuleFromPar<inet::TraCIMobility>(par("mobilityModule"), this);
+			}
+		}
+	\end{verbatim}
+	
+	\subsubsection{Mobile Device Header (\texttt{MobileDevice.h})}
+	
+	Create \texttt{MobileDevice.h} in the \texttt{src} directory:
+	
+	\begin{verbatim}
+		#ifndef MOBILEDEVICE_H
+		#define MOBILEDEVICE_H
+		
+		#include "inet/node/inet/AdhocHost.h"
+		#include "inet/mobility/traci/TraCIMobility.h"
+		
+		class MobileDevice : public inet::AdhocHost
+		{
+			protected:
+			std::vector<std::string> simCards;
+			std::string modeOfTransport;
+			inet::TraCIMobility* mobility;
+			
+			virtual void initialize(int stage) override;
+		};
+		
+		#endif // MOBILEDEVICE_H
+	\end{verbatim}
+	
+	\section{Configuring the Cellular Network with OpenCellID Data}
+	
+	\subsection{Processing OpenCellID Data}
+	
+	\begin{enumerate}
+		\item \textbf{Filter Antennas for Bucharest:}
+		
+		Use a Python script to filter antennas within Bucharest's bounding box.
+		
+		\begin{verbatim}
+			import pandas as pd
+			
+			# Load OpenCellID data
+			data = pd.read_csv('opencellid_bucharest.csv')
+			
+			# Define bounding box for Bucharest
+			min_lat, max_lat = 44.3, 44.6
+			min_lon, max_lon = 25.9, 26.3
+			
+			# Filter data
+			bucharest_antennas = data[
+			(data['lat'] >= min_lat) & (data['lat'] <= max_lat) &
+			(data['lon'] >= min_lon) & (data['lon'] <= max_lon)
+			]
+			
+			# Save filtered data
+			bucharest_antennas.to_csv('bucharest_antennas.csv', index=False)
+		\end{verbatim}
+		
+		\item \textbf{Generate Antenna NED Definitions:}
+		
+		\begin{verbatim}
+			antennas = bucharest_antennas.to_dict('records')
+			
+			with open('AntennaNetwork.ned', 'w') as f:
+			f.write('package mobile.simulation;\n\n')
+			f.write('import inet.node.inet.AccessPoint;\n\n')
+			f.write('network AntennaNetwork {\n')
+				f.write('    submodules:\n')
+				for idx, antenna in enumerate(antennas):
+				x_pos = antenna["lon"] * 100000  # Scale coordinates appropriately
+				y_pos = antenna["lat"] * 100000
+				f.write(f'        antenna{idx}: Antenna {{\n')
+						f.write(f'            @display("p={x_pos},{y_pos}");\n')
+						f.write(f'            antennaType = "{antenna["antenna_type"]}";\n')
+						f.write('        }\n')
+					f.write('}\n')
+			\end{verbatim}
+			
+			\textbf{Note:} Multiply coordinates to match the simulation's scale.
+			
+		\end{enumerate}
+		
+		\subsection{Defining Base Stations in the Simulation}
+		
+		Include the antenna network in your main network.
+		
+		\textbf{Update \texttt{MobileNetwork.ned}:}
+		
+		\begin{verbatim}
+			network MobileNetwork
+			{
+				parameters:
+				int numDevices = default(50000);
+				submodules:
+				antennaNetwork: AntennaNetwork {
+					@display("p=50,50");
+				}
+				devices[numDevices]: MobileDevice {
+					@display("p=200,100");
+				}
+			}
+		\end{verbatim}
+		
+		\textbf{Define Antenna Module (\texttt{Antenna.ned}):}
+		
+		\begin{verbatim}
+			package mobile.simulation;
+			
+			import inet.node.inet.AccessPoint;
+			
+			module Antenna extends AccessPoint
+			{
+				parameters:
+				string antennaType;
+				@display("i=block/celltower");
+			}
+		\end{verbatim}
+		
+		\section{Setting Up the Simulation Configuration (\texttt{omnetpp.ini})}
+		
+		Create an \texttt{omnetpp.ini} file with the following content:
+		
+		\begin{verbatim}
+			[General]
+			network = MobileNetwork
+			sim-time-limit = 24h
+			
+			# Number of devices (each device has between 1 and 3 SIM cards)
+			**.numDevices = 50000
+			
+			# Mobility Configuration
+			**.devices[*].mobilityModule = "^.^.mobility"
+			**.devices[*].mobility.typename = "TraCIMobility"
+			**.devices[*].mobility.externalId = format("device%d", index)
+			**.devices[*].mobility.host = this
+			
+			# Assign number of SIM cards per device
+			**.devices[*].numSims = intuniform(1, 3)
+			
+			# Mode of Transport Assignment
+			**.devices[*].modeOfTransport = expr(index % 2 == 0 ? "pedestrian" : "vehicle")
+			
+			# Wireless Interface Configuration
+			**.devices[*].wlan[0].typename = "WirelessInterface"
+			**.devices[*].wlan[0].mac.typename = "Ieee80211Mac"
+			**.devices[*].wlan[0].radio.typename = "Ieee80211Radio"
+			
+			# Antenna Configuration
+			**.antennaNetwork.antenna*.wlan[0].typename = "WirelessInterface"
+			**.antennaNetwork.antenna*.wlan[0].mac.typename = "Ieee80211Mac"
+			**.antennaNetwork.antenna*.wlan[0].radio.typename = "Ieee80211Radio"
+			
+			# Configure Antenna Types
+			for idx in range(numAntennas):
+			antennaType = antennas[idx]["antennaType"]
+			**.antennaNetwork.antenna${idx}.antennaType = "${antennaType}"
+			
+			# VEINS and SUMO Configuration
+			*.manager.typename = "TraCIScenarioManager"
+			*.manager.configFile = "bucharest.sumo.cfg"
+			*.manager.launchConfig = "-c $configFile"
+			*.manager.port = 9999
+			*.manager.autoShutdown = true
+			*.manager.client.launcher = "sumo-launchd.py"
+			
+			# Logging Configuration
+			**.scalar-recording = true
+			**.vector-recording = true
+		\end{verbatim}
+		
+		\section{Running the Simulation and Collecting Data}
+		
+		\subsection{Starting SUMO}
+		
+		Start SUMO to communicate with VEINS:
+		
+		\begin{verbatim}
+			sumo-gui -c bucharest.sumo.cfg --remote-port 9999
+		\end{verbatim}
+		
+		Alternatively, allow VEINS to start SUMO automatically.
+		
+		\subsection{Running the Simulation}
+		
+		\begin{enumerate}
+			\item \textbf{Build the Project:}
+			\begin{itemize}
+				\item In the OMNeT++ IDE, build the project to compile all modules.
+			\end{itemize}
+			\item \textbf{Execute the Simulation:}
+			\begin{itemize}
+				\item Run the simulation using \texttt{omnetpp.ini}.
+				\item Monitor for any errors or warnings.
+			\end{itemize}
+		\end{enumerate}
+		
+		\subsection{Collecting Geolocation Data}
+		
+		Implement data logging in \texttt{MobileDevice.cc}:
+		
+		\begin{verbatim}
+			void MobileDevice::handleMessage(cMessage *msg)
+			{
+				// Log current position
+				inet::Coord position = mobility->getCurrentPosition();
+				simtime_t timestamp = simTime();
+				
+				// Record position vector for each SIM card
+				for (auto &simId : simCards) {
+					std::string vectorName = "SIM_" + simId + "_Position";
+					cOutVector *positionVector = new cOutVector(vectorName.c_str());
+					positionVector->recordWithTimestamp(timestamp, position.distance(inet::Coord::ZERO));
+				}
+				
+				// Continue with message handling
+				AdhocHost::handleMessage(msg);
+			}
+		\end{verbatim}
+		
+		\textbf{Note:} The data will be recorded in the simulation output files. Use OMNeT++ analysis tools or export the data for further processing.
+		
+		\section{Conclusion}
+		
+		This guide provides the full code and steps required to set up a simulation of mobile phone network data with geolocation of devices on the Bucharest map over 24 hours for \textbf{100,000 SIM cards} using \textbf{VEINS} and \textbf{INET} frameworks. By incorporating real antenna data from \textbf{OpenCellID} and modeling realistic mobility patterns with \textbf{SUMO}, the simulation offers a detailed representation of network and mobility behaviors.
+		
+		\subsection*{Next Steps}
+		
+		\begin{itemize}
+			\item \textbf{Performance Optimization:}
+			\begin{itemize}
+				\item Simulating 100,000 devices is resource-intensive. Consider using high-performance computing resources or reducing the number of devices for testing.
+			\end{itemize}
+			\item \textbf{Data Analysis:}
+			\begin{itemize}
+				\item After the simulation, analyze the collected geolocation data using appropriate data analysis tools.
+			\end{itemize}
+			\item \textbf{Enhancements:}
+			\begin{itemize}
+				\item Incorporate detailed mobility models, advanced network protocols, or environmental factors to enhance realism.
+			\end{itemize}
+		\end{itemize}
+		
+		\section{References}
+		
+		\begin{itemize}
+			\item \textbf{OMNeT++ Documentation:} \href{https://doc.omnetpp.org/omnetpp/manual/}{OMNeT++ Manual}
+			\item \textbf{INET Framework:} \href{https://inet.omnetpp.org/}{INET Framework}
+			\item \textbf{VEINS Framework:} \href{https://veins.car2x.org/}{VEINS}
+			\item \textbf{SUMO Documentation:} \href{https://sumo.dlr.de/docs/index.html}{SUMO Wiki}
+			\item \textbf{OpenCellID:} \href{https://opencellid.org/}{OpenCellID}
+			\item \textbf{OpenStreetMap:} \href{https://www.openstreetmap.org/}{OpenStreetMap}
+		\end{itemize}
+		
+		\textbf{Note:} The provided code and configurations serve as a starting point. Further adjustments and optimizations may be necessary to run the simulation successfully in your environment.
+		
+	\end{document}
